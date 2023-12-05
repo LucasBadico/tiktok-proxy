@@ -17,6 +17,9 @@ const readline = require('readline');
 
 //adding useragent to avoid ip bans
 const headers = new Headers();
+
+let somaViews = 0; //Guardar a quantidade de views
+
 headers.append('User-Agent', 'TikTok 26.2.0 rv:262018 (iPhone; iOS 14.4.2; en_US) Cronet');
 
 function writeFile(conteudo, nomeArquivo) {
@@ -180,6 +183,7 @@ const getVideo = async (url, watermark) => {
         duration,
         extra,
     }
+    
     return data;
 }
 
@@ -438,6 +442,8 @@ function daysSinceTo(startDate, endDate) {
         }
     }
 
+    
+
     function orderTags(tags) {
         // Convertendo o objeto em um array de arrays [chave, valor]
         const entries = Object.entries(tags);
@@ -500,6 +506,64 @@ function daysSinceTo(startDate, endDate) {
             [_key]: _retrodata[_key],
         }
     }
+
+    function calculateApproximateMoneyFloat(approximateMoney) {
+        const threshold = 1000;
+    
+        if (approximateMoney < threshold) {
+            return 0;
+        }
+    
+        const viewsMonetized = (approximateMoney / 2 / 1000) * 0.15;
+    
+        return viewsMonetized;
+    }
+    
+    
+    const dictionarydata = {};
+
+    function views_month(data) {
+        
+        const new_data = new Date(data.created_at * 1000);
+        const monthOfVideo = new_data.getMonth();
+        const yearOfVideo = new_data.getFullYear();
+
+        const calculateMoneyFloat = calculateApproximateMoneyFloat(parseFloat(data.statistics.play_count));
+
+        console.log('-----------------------------------------------------')
+        console.log(dictionarydata)
+        console.log('-----------------------------------------------------')
+
+        if (!dictionarydata[yearOfVideo]) {
+                dictionarydata[yearOfVideo] = {};
+        }
+
+        if (!dictionarydata[yearOfVideo][monthOfVideo]) {
+            dictionarydata[yearOfVideo][monthOfVideo] = {
+                year: yearOfVideo,
+                month: monthOfVideo,
+                numberOfVideoViews: parseInt(data.statistics.play_count),
+                estimatedMoney: calculateMoneyFloat.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                }),
+                numberInFloat: calculateMoneyFloat.toFixed(3),
+                
+            };
+        } else {
+            dictionarydata[yearOfVideo][monthOfVideo].numberOfVideoViews += parseInt(data.statistics.play_count);
+                
+            if (calculateMoneyFloat === 0) {
+                console.log('Abaixo de mil não conta monetização!');
+            } else {
+                const existingApproximateMoney = parseFloat(dictionarydata[yearOfVideo][monthOfVideo].numberInFloat);
+                const newApproximateMoney = existingApproximateMoney + calculateMoneyFloat;
+
+                dictionarydata[yearOfVideo][monthOfVideo].numberInFloat = newApproximateMoney;
+            }
+        }
+    }
+
     function getNewBestStatistics(statisticsData, data) {
         return {
             ...writeIfIsEqualOrIsBest(statisticsData, 'comment_count', data),
@@ -512,6 +576,8 @@ function daysSinceTo(startDate, endDate) {
             ...writeIfIsEqualOrIsBest(statisticsData, 'lose_comment_count', data),
             ...writeIfIsEqualOrIsBest(statisticsData, 'whatsapp_share_count', data),
             ...writeIfIsEqualOrIsBest(statisticsData, 'collect_count',  data),
+
+            
         }
     }
     const listRawData = [];
@@ -527,7 +593,8 @@ function daysSinceTo(startDate, endDate) {
             deleted_videos_count++;
             continue;
         }
-        const created_date = new Date(data.created_at *1000);
+        const created_date = new Date(data.created_at *1000); 
+        
 
         
         retrodata.all_video_duration_secs = retrodata.all_video_duration_secs + (data.duration / 1000); 
@@ -544,6 +611,9 @@ function daysSinceTo(startDate, endDate) {
         retrodata.best_statistics = getNewBestStatistics(retrodata.best_statistics, data)
         retrodata.tags_count = orderTags(getNewTagCount(retrodata.tags_count, data))
         retrodata.longest_video_secs = getNewLongestVideo(retrodata.longest_video_secs, data)
+        views_month(data)
+
+
         if (created_date.getFullYear() == 2023) {
             retrodata.all_video_count_2023 = retrodata.all_video_count_2023 + 1;
             retrodata.all_video_duration_2023_secs = retrodata.all_video_duration_2023_secs + (data.duration / 1000);
@@ -562,6 +632,7 @@ function daysSinceTo(startDate, endDate) {
             retrodata.tags_count_2023 = orderTags(getNewTagCount(retrodata.tags_count_2023, data))
             
             retrodata.longest_video_secs_2023 = getNewLongestVideo(retrodata.longest_video_secs_2023, data)
+
        
         }
 
@@ -581,4 +652,7 @@ function daysSinceTo(startDate, endDate) {
     writeFile(JSON.stringify(listRawData, null, 2), _username.slice(1)+'.rawlist.json');
     writeFile(JSON.stringify(retrodata, null, 2), _username.slice(1)+'.result.json');
     console.log(chalk.yellow(`[!] ${deleted_videos_count} of ${listVideo.length} videos were deleted!`));
+    
 })();
+
+
